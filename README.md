@@ -9,3 +9,8 @@ A command line tool that wraps Optimisms [superchain-registry](https://github.co
     - `go install github.com/blmalone/superchain-insights/cmd/sci@latest`
 - Set `SUPERCHAIN_REGISTRY_URL` environment variable
     - e.g. `export SUPERCHAIN_REGISTRY_URL=https://raw.githubusercontent.com/ethereum-optimism/superchain-registry/refs/heads/main`
+ 
+
+## Usage
+
+After installation, run `sci --help` for a full breakdown of the available functionality.
