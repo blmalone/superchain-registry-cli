@@ -32,6 +32,11 @@ func main() {
 						Aliases: []string{"v"},
 						Usage:   "Enable verbose output",
 					},
+					&cli.BoolFlag{
+						Name:    "testnet",
+						Aliases: []string{"t"},
+						Usage:   "Filter for testnet chains",
+					},
 				},
 				Action: func(c *cli.Context) error {
 					superchainRegistryURL := c.String("superchain-registry-url")
@@ -41,23 +46,13 @@ func main() {
 					}
 
 					chainListURL := superchainRegistryURL + "/chainList.toml"
-					verbose := c.Bool("verbose") // Check verbosity at the command level
 
-					resp, err := http.Get(chainListURL)
+					verbose := c.Bool("verbose")
+					testnet := c.Bool("testnet")
+
+					body, err := httpGet(chainListURL)
 					if err != nil {
-						fmt.Printf("Failed to fetch the chain list: %v\n", err)
-						return err
-					}
-					defer resp.Body.Close()
-
-					if resp.StatusCode != http.StatusOK {
-						fmt.Printf("Error: received status code %d\n", resp.StatusCode)
-						return fmt.Errorf("failed to fetch chain list with status code: %d", resp.StatusCode)
-					}
-
-					body, err := io.ReadAll(resp.Body)
-					if err != nil {
-						fmt.Printf("Failed to read response body: %v\n", err)
+						fmt.Printf("Failed to perform httpGet: %v\n", err)
 						return err
 					}
 
@@ -71,15 +66,17 @@ func main() {
 						fmt.Println("No chains found in the TOML file.")
 					} else {
 						for _, chain := range chainList.Chains {
-							if chain.SuperchainLevel == 1 && chain.Parent.Chain == "mainnet" {
-								fmt.Printf("  Name: %s\n", chain.Name)
-								if verbose {
-									fmt.Printf("  Identifier: %s\n", chain.Identifier)
-									fmt.Printf("  Chain ID: %d\n", chain.ChainID)
-									fmt.Printf("  RPC: %v\n", chain.RPC)
-									fmt.Printf("  Explorers: %v\n", chain.Explorers)
+							if chain.SuperchainLevel == STANDARD_CHAIN {
+								if (testnet && chain.Parent.Chain == SEPOLIA) || (!testnet && chain.Parent.Chain == MAINNET) {
+									fmt.Printf("  Name: %s\n", chain.Name)
+									if verbose {
+										fmt.Printf("  Identifier: %s\n", chain.Identifier)
+										fmt.Printf("  Chain ID: %d\n", chain.ChainID)
+										fmt.Printf("  RPC: %v\n", chain.RPC)
+										fmt.Printf("  Explorers: %v\n", chain.Explorers)
+									}
+									fmt.Println()
 								}
-								fmt.Println()
 							}
 						}
 					}
@@ -95,4 +92,23 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func httpGet(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch the: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch with status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return body, nil
 }
