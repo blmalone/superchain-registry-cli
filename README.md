@@ -13,4 +13,4 @@ A command line tool that wraps Optimisms [superchain-registry](https://github.co
 
 ## Usage
 
-After installation, run `sci --help` for a full breakdown of the available functionality.
+After installation, run `sure --help` for a full breakdown of the available functionality.
