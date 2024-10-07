@@ -1,4 +1,4 @@
-module github.com/blmalone/superchain-insights
+module github.com/blmalone/superchain-registry-cli
 
 go 1.22.0
 
