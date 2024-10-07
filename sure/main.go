@@ -13,8 +13,8 @@ import (
 // Superchain registry url: https://raw.githubusercontent.com/ethereum-optimism/superchain-registry/refs/heads/main
 func main() {
 	app := &cli.App{
-		Name:  "superchain-insights",
-		Usage: "A tool for gathering Superchain insights",
+		Name:  "superchain-registry-cli",
+		Usage: "A tool for interacting with the superchain-registry",
 		Commands: []*cli.Command{
 			{
 				Name:    "list",
