@@ -50,6 +50,7 @@ After installation, run `sure --help` for a full breakdown of the available func
     ```bash
         cast call $(sure ga -c op -an L1StandardBridge) "version()(string)"
     ```
+    ![How to use sure with cast](./cast-usage-example.gif)  
 
 ## Contributing
 
