@@ -17,6 +17,15 @@ func main() {
 		Usage: "A tool for interacting with the superchain-registry",
 		Commands: []*cli.Command{
 			{
+				Name:    "version",
+				Aliases: []string{"v"},
+				Usage:   "Print the version of the CLI",
+				Action: func(c *cli.Context) error {
+					fmt.Printf("superchain-registry-cli version %s\n", Version)
+					return nil
+				},
+			},
+			{
 				Name:    "list",
 				Aliases: []string{"ls"},
 				Usage:   "List all chains in the superchain",

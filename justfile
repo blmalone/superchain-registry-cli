@@ -12,7 +12,9 @@ tidy:
   go mod tidy
 
 last-release:
-  git describe --tags `git rev-list --tags --max-count=1`
+  @echo "\n#### Remember to update the version in sure/version.go ####\n"
+  @git describe --tags `git rev-list --tags --max-count=1`
+  @echo "\n"
 
 release semver:
     git tag {{semver}}
