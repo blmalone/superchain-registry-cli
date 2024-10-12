@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli/v2"
@@ -84,6 +86,85 @@ func main() {
 					return nil
 				},
 			},
+			{
+				Name:    "get-addresses",
+				Aliases: []string{"ga"},
+				Usage:   "Gets addresses for a given chain",
+				// HideHelp: true,
+				HideHelpCommand: true,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "superchain-registry-url",
+						Aliases: []string{"scr"},
+						Usage:   "Specify the superchain registry URL",
+						EnvVars: []string{"SUPERCHAIN_REGISTRY_URL"},
+					},
+					&cli.BoolFlag{
+						Name:    "verbose",
+						Aliases: []string{"v"},
+						Usage:   "Enable verbose output",
+					},
+					&cli.BoolFlag{
+						Name:    "testnet",
+						Aliases: []string{"t"},
+						Usage:   "Filter for testnet chains",
+					},
+					&cli.StringFlag{
+						Name:    "address",
+						Aliases: []string{"a"},
+						Usage:   "address to find",
+					},
+					&cli.StringFlag{
+						Name:    "address-name",
+						Aliases: []string{"an"},
+						Usage:   "address name to find",
+					},
+					&cli.StringFlag{
+						Name:    "network",
+						Aliases: []string{"n"},
+						Usage:   "network to filter by",
+					},
+				},
+				Action: func(c *cli.Context) error {
+
+					superchainRegistryURL := c.String("superchain-registry-url")
+					if superchainRegistryURL == "" {
+						fmt.Println("SUPERCHAIN_REGISTRY_URL is not set. Please set it or use the --superchain-registry-url flag.")
+						return nil
+					}
+
+					if !c.IsSet("address") && !c.IsSet("network") && !c.IsSet("address-name") {
+						err := cli.ShowCommandHelp(c, "get-addresses")
+						return err
+					}
+
+					// TODO: validate address
+					address := c.String("address")
+					network := c.String("network")
+					testnet := c.Bool("testnet")
+					addressName := c.String("address-name")
+
+					superchainConfigs := superchainRegistryURL + "/superchain/configs/configs.json"
+
+					body, _ := httpGet(superchainConfigs)
+
+					var superchains Superchains
+					err := json.Unmarshal([]byte(body), &superchains)
+					if err != nil {
+						println(err)
+						return err
+					}
+
+					superchain := superchains.Superchains[0]
+					if testnet {
+						superchain = superchains.Superchains[1]
+					}
+
+					findChain(superchain, network, address, addressName, testnet)
+
+					return nil
+				},
+			},
 		},
 	}
 
@@ -92,6 +173,49 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func findChain(superchain Superchain, chainName string, addressToFind string, addressNameToFind string, isTestnet bool) (string, *ChainInfo) {
+	for _, chain := range superchain.ChainInfos {
+		if chainName != "" && chain.Chain != chainName {
+			continue
+		}
+
+		printChainInfo := func(addressName, address string) {
+			etherscanURL := getEtherscanURL(address, isTestnet)
+			fmt.Printf("  %s: \033]8;;%s\033\\%s\033]8;;\033\\\n", addressName, etherscanURL, address)
+		}
+
+		if addressToFind == "" {
+			fmt.Printf("Chain: %s\n", chain.Chain)
+			fmt.Printf("Network: %s\n", superchain.Name)
+
+			for addressName, address := range chain.Addresses {
+				if addressNameToFind == "" || strings.Contains(strings.ToLower(addressName), strings.ToLower(addressNameToFind)) {
+					printChainInfo(addressName, address)
+				}
+			}
+			return "", &chain
+		}
+
+		for addressName, address := range chain.Addresses {
+			if address == addressToFind {
+				fmt.Printf("Chain: %s\n", chain.Chain)
+				fmt.Printf("Network: %s\n", superchain.Name)
+				fmt.Printf("  Name: %s\n", addressName)
+				printChainInfo(addressName, address)
+				return addressName, &chain
+			}
+		}
+	}
+	return "", nil
+}
+
+func getEtherscanURL(address string, isTestnet bool) string {
+	if isTestnet {
+		return fmt.Sprintf("https://sepolia.etherscan.io/address/%s", address)
+	}
+	return fmt.Sprintf("https://etherscan.io/address/%s", address)
 }
 
 func httpGet(url string) ([]byte, error) {
