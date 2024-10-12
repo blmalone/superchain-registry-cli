@@ -11,8 +11,9 @@ import (
 )
 
 // Superchain registry url: https://raw.githubusercontent.com/ethereum-optimism/superchain-registry/refs/heads/main
-func main() {
-	app := &cli.App{
+
+func CreateApp() *cli.App {
+	return &cli.App{
 		Name:  "superchain-registry-cli",
 		Usage: "A tool for interacting with the superchain-registry",
 		Commands: []*cli.Command{
@@ -64,10 +65,11 @@ func main() {
 				},
 			},
 			{
-				Name:            "get-addresses",
-				Aliases:         []string{"ga"},
-				Usage:           "Gets addresses for a given chain",
-				HideHelpCommand: true,
+				Name:                   "get-addresses",
+				Aliases:                []string{"ga"},
+				Usage:                  "Gets addresses for a given chain",
+				HideHelpCommand:        true,
+				UseShortOptionHandling: true,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "verbose",
@@ -90,29 +92,32 @@ func main() {
 						Usage:   "Address name to find",
 					},
 					&cli.StringFlag{
-						Name:    "network",
-						Aliases: []string{"n"},
-						Usage:   "Network to filter by",
+						Name:    "chain",
+						Aliases: []string{"c"},
+						Usage:   "Chain to filter by",
 					},
 				},
 				Action: func(c *cli.Context) error {
-					if !c.IsSet("address") && !c.IsSet("network") && !c.IsSet("address-name") {
+					if !c.IsSet("address") && !c.IsSet("chain") && !c.IsSet("address-name") {
 						return cli.ShowCommandHelp(c, "get-addresses")
 					}
 
 					// TODO: validate address
 					address := c.String("address")
-					network := c.String("network")
+					chain := c.String("chain")
 					testnet := c.Bool("testnet")
 					addressName := c.String("address-name")
 
-					findChain(superchain.OPChains, network, address, addressName, testnet)
+					findChain(superchain.OPChains, chain, address, addressName, testnet)
 					return nil
 				},
 			},
 		},
 	}
+}
 
+func main() {
+	app := CreateApp()
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -156,8 +161,11 @@ func findChain(opChains map[uint64]*superchain.ChainConfig, chainName, addressTo
 		}
 
 		printChainInfo := func(addressName, address string) {
-			etherscanURL := getEtherscanURL(address, isTestnet)
-			fmt.Printf("  %s: \033]8;;%s\033\\%s\033]8;;\033\\\n", addressName, etherscanURL, address)
+			if address == "0x0000000000000000000000000000000000000000" {
+				fmt.Printf("  %s: %s\n", addressName, "<n/a>")
+			} else {
+				fmt.Print(CreateHyperlinkedAddress(addressName, GetEtherscanURL(address, isTestnet)))
+			}
 		}
 		namedAddresses := ConvertAddressListToNamedAddresses(chain.Addresses)
 
@@ -170,24 +178,28 @@ func findChain(opChains map[uint64]*superchain.ChainConfig, chainName, addressTo
 					printChainInfo(namedAddress.Name, namedAddress.Address.String())
 				}
 			}
-			return
-		}
-
-		for _, namedAddress := range namedAddresses {
-			if namedAddress.Address.String() == addressToFind {
-				fmt.Printf("Chain: %s\n", chain.Chain)
-				fmt.Printf("Network: %s\n", chain.Name)
-				fmt.Printf("  Name: %s\n", namedAddress.Name)
-				printChainInfo(namedAddress.Name, namedAddress.Address.String())
-				return
+		} else {
+			for _, namedAddress := range namedAddresses {
+				if namedAddress.Address.String() == addressToFind {
+					fmt.Printf("Chain: %s\n", chain.Chain)
+					fmt.Printf("Network: %s\n", chain.Name)
+					fmt.Printf("  Name: %s\n", namedAddress.Name)
+					printChainInfo(namedAddress.Name, namedAddress.Address.String())
+				}
 			}
 		}
 	}
 }
 
-func getEtherscanURL(address string, isTestnet bool) string {
+func CreateHyperlinkedAddress(addressName string, etherscanAddressURL string) string {
+	addressPart := etherscanAddressURL[len(etherscanAddressURL)-42:]
+	return fmt.Sprintf("  %s: \033]8;;%s\033\\%s\033]8;;\033\\\n", addressName, etherscanAddressURL, addressPart)
+}
+
+func GetEtherscanURL(address string, isTestnet bool) string {
+	baseURL := "https://etherscan.io/address/%s"
 	if isTestnet {
-		return fmt.Sprintf("https://sepolia.etherscan.io/address/%s", address)
+		baseURL = "https://sepolia.etherscan.io/address/%s"
 	}
-	return fmt.Sprintf("https://etherscan.io/address/%s", address)
+	return fmt.Sprintf(baseURL, address)
 }
