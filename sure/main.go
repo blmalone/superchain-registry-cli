@@ -106,9 +106,10 @@ func CreateApp() *cli.App {
 					address := c.String("address")
 					chain := c.String("chain")
 					testnet := c.Bool("testnet")
+					verbose := c.Bool("verbose")
 					addressName := c.String("address-name")
 
-					findChain(superchain.OPChains, chain, address, addressName, testnet)
+					GetAddresses(superchain.OPChains, chain, address, addressName, testnet, verbose)
 					return nil
 				},
 			},
@@ -150,44 +151,69 @@ func ConvertAddressListToNamedAddresses(addressList superchain.AddressList) []Na
 	return namedAddresses
 }
 
-func findChain(opChains map[uint64]*superchain.ChainConfig, chainName, addressToFind, addressNameToFind string, isTestnet bool) {
+func GetAddresses(opChains map[uint64]*superchain.ChainConfig, chainName, addressToFind, addressNameToFind string, isTestnet bool, isVerbose bool) {
 	for _, chain := range opChains {
-		if chainName != "" && chain.Chain != chainName {
-			continue
+		if !isChainMatching(chain, chainName, isTestnet) {
+			continue // chain doesn't match criteria, skip this chain
 		}
 
-		if isTestnet && chain.Superchain != "sepolia" || !isTestnet && chain.Superchain != "mainnet" {
-			continue
-		}
-
-		printChainInfo := func(addressName, address string) {
-			if address == "0x0000000000000000000000000000000000000000" {
-				fmt.Printf("  %s: %s\n", addressName, "<n/a>")
-			} else {
-				fmt.Print(CreateHyperlinkedAddress(addressName, GetEtherscanURL(address, isTestnet)))
-			}
-		}
 		namedAddresses := ConvertAddressListToNamedAddresses(chain.Addresses)
 
 		if addressToFind == "" {
-			fmt.Printf("Chain: %s\n", chain.Chain)
-			fmt.Printf("Network: %s\n", chain.Name)
-
-			for _, namedAddress := range namedAddresses {
-				if addressNameToFind == "" || strings.Contains(strings.ToLower(namedAddress.Name), strings.ToLower(addressNameToFind)) {
-					printChainInfo(namedAddress.Name, namedAddress.Address.String())
-				}
-			}
+			handleAddressNameSearch(chain, namedAddresses, addressNameToFind, isVerbose, isTestnet)
 		} else {
-			for _, namedAddress := range namedAddresses {
-				if namedAddress.Address.String() == addressToFind {
-					fmt.Printf("Chain: %s\n", chain.Chain)
-					fmt.Printf("Network: %s\n", chain.Name)
-					fmt.Printf("  Name: %s\n", namedAddress.Name)
-					printChainInfo(namedAddress.Name, namedAddress.Address.String())
-				}
-			}
+			handleAddressSearch(chain, namedAddresses, addressToFind, isVerbose, isTestnet)
 		}
+	}
+}
+
+func isChainMatching(chain *superchain.ChainConfig, chainName string, isTestnet bool) bool {
+	if chainName != "" && chain.Chain != chainName {
+		return false
+	}
+	if isTestnet && chain.Superchain != "sepolia" || !isTestnet && chain.Superchain != "mainnet" {
+		return false
+	}
+	return true
+}
+
+func handleAddressNameSearch(chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressNameToFind string, isVerbose bool, isTestnet bool) {
+	printChainAndNetwork(chain, isVerbose)
+	for _, namedAddress := range namedAddresses {
+		if addressNameToFind == "" || strings.Contains(strings.ToLower(namedAddress.Name), strings.ToLower(addressNameToFind)) {
+			printChainInfo(namedAddress.Name, namedAddress.Address.String(), isVerbose, isTestnet)
+		}
+	}
+}
+
+func handleAddressSearch(chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressToFind string, isVerbose bool, isTestnet bool) {
+	for _, namedAddress := range namedAddresses {
+		if namedAddress.Address.String() == addressToFind {
+			printChainAndNetwork(chain, isVerbose)
+			if isVerbose {
+				fmt.Printf("  Name: %s\n", namedAddress.Name)
+			}
+			printChainInfo(namedAddress.Name, namedAddress.Address.String(), isVerbose, isTestnet)
+		}
+	}
+}
+
+func printChainInfo(addressName, address string, isVerbose bool, isTestnet bool) {
+	if address == "0x0000000000000000000000000000000000000000" {
+		fmt.Printf("  %s: %s\n", addressName, "<n/a>")
+	} else {
+		if isVerbose {
+			fmt.Print(CreateHyperlinkedAddress(addressName, GetEtherscanURL(address, isTestnet)))
+		} else {
+			fmt.Printf("%s\n", address)
+		}
+	}
+}
+
+func printChainAndNetwork(chain *superchain.ChainConfig, verbose bool) {
+	if verbose {
+		fmt.Printf("Chain: %s\n", chain.Chain)
+		fmt.Printf("Network: %s\n", chain.Name)
 	}
 }
 

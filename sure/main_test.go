@@ -82,14 +82,20 @@ func TestGetAddresses(t *testing.T) {
 	}{
 		{
 			name:       "Find all chain addresses",
-			args:       []string{"superchain-registry-cli", "get-addresses", "--chain", "op"},
+			args:       []string{"superchain-registry-cli", "get-addresses", "--chain", "op", "-v"},
 			wantOutput: allChainAddressesOPMainnet,
 			wantErr:    false,
 		},
 		{
 			name:       "Find all testnet chain addresses",
-			args:       []string{"superchain-registry-cli", "get-addresses", "--chain", "op", "-t"},
+			args:       []string{"superchain-registry-cli", "get-addresses", "--chain", "op", "-t", "-v"},
 			wantOutput: allChainAddressesOPSepolia,
+			wantErr:    false,
+		},
+		{
+			name:       "Find specific address by name",
+			args:       []string{"superchain-registry-cli", "get-addresses", "--chain", "op", "-an", "L1CrossDomainMessengerProxy"},
+			wantOutput: "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
 			wantErr:    false,
 		},
 	}
