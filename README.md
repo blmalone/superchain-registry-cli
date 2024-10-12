@@ -26,6 +26,11 @@ After installation, run `sure --help` for a full breakdown of the available func
 - Get a specific address by name (fuzzy match on `--address-name`): `sure ga -c zora -an l1` or `go run sure/*.go ga -c zora -an L1CrossDomainMessengerProxy`
 - Get all addresses for a given name across the superchain (fuzzy match on `--address-name`): `sure ga -an L1StandardBridge`
 
+- Usage with [cast](https://book.getfoundry.sh/cast/)
+    ```bash
+        cast call $(sure get-addresses -c op -an L1StandardBridge) "version()(string)"
+    ```
+
 ## Contributing
 
 Contributions are welcome! Fork this repository and submit a pull request.
