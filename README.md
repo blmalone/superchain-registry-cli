@@ -1,7 +1,7 @@
 # superchain-registry-cli
 
 <p align="center">
-    <img src="./superchain-registry-cli-dalle.png" alt="Generated Dall-e given this README as a prompt" width="500"/>
+    <img src="./superchain-registry-cli-dalle.png" alt="Generated Dall-e given this README as a prompt" width="400"/>
 </p>
 
 A command line tool that wraps Optimisms [superchain-registry](https://github.com/ethereum-optimism/superchain-registry) repository.
