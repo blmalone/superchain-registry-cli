@@ -21,14 +21,32 @@ After installation, run `sure --help` for a full breakdown of the available func
 
 ## Examples
 
-- List all chains in the superchain (default is mainnet): `sure ls` or `sure list` or `sure ls --testnet`
-- Get all addresses for a chain: `sure ga -c op` or `sure get-addresses -c op` or `sure ga -c op -t`
-- Get a specific address by name (fuzzy match on `--address-name`): `sure ga -c zora -an l1` or `go run sure/*.go ga -c zora -an L1CrossDomainMessengerProxy`
-- Get all addresses for a given name across the superchain (fuzzy match on `--address-name`): `sure ga -an L1StandardBridge`
-
-- Usage with [cast](https://book.getfoundry.sh/cast/)
+- List all chains in the superchain (default is mainnet): 
+    ```bash 
+        sure ls
+        sure list
+        sure ls --testnet
+    ``` 
+- Get all addresses for a chain: 
+    ```bash 
+        sure get-addresses --chain op --verbose
+        sure ga -c op -v
+        sure ga -c op -t -v
+    ```
+- Get a specific address by name (fuzzy match on `--address-name`): 
     ```bash
-        cast call $(sure get-addresses -c op -an L1StandardBridge) "version()(string)"
+        sure ga -c zora --address-name l1 -v # all addresses containing "l1" - not case sensitive
+        sure ga -c zora -an L1CrossDomainMessengerProxy -v
+    ```
+
+- Get all addresses for a given name across the superchain (fuzzy match on `--address-name`): 
+    ```bash
+        sure ga -an L1StandardBridge -v
+    ```
+
+- Usage with [cast](https://book.getfoundry.sh/cast/):
+    ```bash
+        cast call $(sure ga -c op -an L1StandardBridge) "version()(string)"
     ```
 
 ## Contributing
