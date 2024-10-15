@@ -10,57 +10,46 @@ import (
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 )
 
-type NamedAddress struct {
-	Name    string
-	Address superchain.Address
-}
-
-func ConvertAddressListToNamedAddresses(addressList superchain.AddressList) []NamedAddress {
-	var namedAddresses []NamedAddress
-
-	val := reflect.ValueOf(addressList)
-	typ := reflect.TypeOf(addressList)
-
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldName := typ.Field(i).Name
-
-		if field.Type() == reflect.TypeOf(superchain.Address{}) {
-			namedAddresses = append(namedAddresses, NamedAddress{
-				Name:    fieldName,
-				Address: field.Interface().(superchain.Address),
-			})
-		}
-	}
-
-	return namedAddresses
-}
-
 func GetAddresses(opChains map[uint64]*superchain.ChainConfig, chainName, addressToFind, addressNameToFind string, isTestnet bool, isVerbose bool, isJson bool) {
 	jsonResult := make(map[string]interface{})
 
+	relevantSuperchain := getRelevantSuperchain(isTestnet)
+
 	for _, chain := range opChains {
 		if !isChainMatching(chain, chainName, isTestnet) {
-			continue // chain doesn't match criteria, skip this chain
+			continue // Skip chains that do not match the criteria
 		}
 
 		namedAddresses := ConvertAddressListToNamedAddresses(chain.Addresses)
 
 		if addressToFind == "" {
-			collectAddressNameSearchResults(chain, namedAddresses, addressNameToFind, isTestnet, isJson, jsonResult)
+			collectAddressNameSearchResults(relevantSuperchain, chain, namedAddresses, addressNameToFind, isTestnet, isJson, jsonResult)
 		} else {
-			collectAddressSearchResults(chain, namedAddresses, addressToFind, isTestnet, isJson, jsonResult)
+			collectAddressSearchResults(relevantSuperchain, chain, namedAddresses, addressToFind, isTestnet, isJson, jsonResult)
 		}
 	}
 
 	if isJson {
-		jsonData, err := json.MarshalIndent(jsonResult, "", "  ")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			return
-		}
-		fmt.Println(string(jsonData))
+		outputJsonResults(jsonResult)
 	}
+}
+
+// Helper function to determine the relevant superchain
+func getRelevantSuperchain(isTestnet bool) *superchain.Superchain {
+	if isTestnet {
+		return superchain.Superchains["sepolia"]
+	}
+	return superchain.Superchains["mainnet"]
+}
+
+// Helper function to output JSON results
+func outputJsonResults(jsonResult map[string]interface{}) {
+	jsonData, err := json.MarshalIndent(jsonResult, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return
+	}
+	fmt.Println(string(jsonData))
 }
 
 func isChainMatching(chain *superchain.ChainConfig, chainName string, isTestnet bool) bool {
@@ -73,7 +62,7 @@ func isChainMatching(chain *superchain.ChainConfig, chainName string, isTestnet 
 	return true
 }
 
-func collectAddressNameSearchResults(chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressNameToFind string, isTestnet bool, isJson bool, jsonResults map[string]interface{}) {
+func collectAddressNameSearchResults(relevantSuperchain *superchain.Superchain, chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressNameToFind string, isTestnet bool, isJson bool, jsonResults map[string]interface{}) {
 	if !isJson {
 		printChainAndNetwork(chain)
 	}
@@ -84,6 +73,9 @@ func collectAddressNameSearchResults(chain *superchain.ChainConfig, namedAddress
 	addressMap := chainMap["addrs"].(map[string]interface{})
 	for _, namedAddress := range namedAddresses {
 		if addressNameToFind == "" || strings.Contains(strings.ToLower(namedAddress.Name), strings.ToLower(addressNameToFind)) {
+			if namedAddress.Name == "SuperchainConfig" { // TODO: This is a hack to get the superchain config address
+				namedAddress.Address = *relevantSuperchain.Config.SuperchainConfigAddr
+			}
 			if isJson {
 				addressMap[namedAddress.Name] = namedAddress.Address.String()
 			} else {
@@ -93,11 +85,14 @@ func collectAddressNameSearchResults(chain *superchain.ChainConfig, namedAddress
 	}
 }
 
-func collectAddressSearchResults(chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressToFind string, isTestnet bool, isJson bool, jsonResults map[string]interface{}) {
+func collectAddressSearchResults(relevantSuperchain *superchain.Superchain, chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressToFind string, isTestnet bool, isJson bool, jsonResults map[string]interface{}) {
 	addressesProperty := "addrs"
 	jsonResults["network"] = chain.Name
 	jsonResults["chain"] = chain.Chain
 	for _, namedAddress := range namedAddresses {
+		if namedAddress.Name == "SuperchainConfig" { // TODO: This is a hack to get the superchain config address
+			namedAddress.Address = *relevantSuperchain.Config.SuperchainConfigAddr
+		}
 		if namedAddress.Address.String() == addressToFind {
 			if isJson {
 				if _, exists := jsonResults[addressesProperty]; !exists {
@@ -137,4 +132,30 @@ func GetEtherscanURL(address string, isTestnet bool) string {
 		baseURL = "https://sepolia.etherscan.io/address/%s"
 	}
 	return fmt.Sprintf(baseURL, address)
+}
+
+type NamedAddress struct {
+	Name    string
+	Address superchain.Address
+}
+
+func ConvertAddressListToNamedAddresses(addressList superchain.AddressList) []NamedAddress {
+	var namedAddresses []NamedAddress
+
+	val := reflect.ValueOf(addressList)
+	typ := reflect.TypeOf(addressList)
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		fieldName := typ.Field(i).Name
+
+		if field.Type() == reflect.TypeOf(superchain.Address{}) {
+			namedAddresses = append(namedAddresses, NamedAddress{
+				Name:    fieldName,
+				Address: field.Interface().(superchain.Address),
+			})
+		}
+	}
+
+	return namedAddresses
 }
