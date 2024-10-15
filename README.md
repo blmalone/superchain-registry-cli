@@ -33,26 +33,28 @@ After installation, run `sure --help` for a full breakdown of the available func
     ``` 
 - Get all addresses for a chain: 
     ```bash 
-        sure get-addresses --chain op --verbose
-        sure ga -c op -v
-        sure ga -c op -t -v
+        sure get-addresses --chain op
+        sure ga -c op
+        sure ga -c op -t
     ```
 - Get a specific address by name (fuzzy match on `--address-name`): 
     ```bash
-        sure ga -c zora --address-name l1 -v # all addresses containing "l1" - not case sensitive
-        sure ga -c zora -an L1CrossDomainMessengerProxy -v
+        sure ga -c zora --address-name l1 # all addresses containing "l1" - not case sensitive
+        sure ga -c zora -an L1CrossDomainMessengerProxy
     ```
 
 - Get all addresses for a given name across the superchain (fuzzy match on `--address-name`): 
     ```bash
-        sure ga -an L1StandardBridge -v
+        sure ga -an L1StandardBridge
     ```
 
 - Usage with [cast](https://book.getfoundry.sh/cast/):
     ```bash
-        cast call $(sure ga -c op -an L1StandardBridge) "version()(string)"
+        cast call $(sure ga -c op -an L1Standard --json | jq -r '.addrs.L1StandardBridgeProxy') "version()(string)"
+
+        # When you know there will be only one address returned
+        cast call $(sure ga -c op -an L1Standard --json | jq -r '.addrs | to_entries | .[0].value') "version()(string)"
     ```
-    ![How to use sure with cast](./cast-usage-example.gif)  
 
 ## Contributing
 

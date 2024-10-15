@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"reflect"
-	"strings"
 
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 	"github.com/urfave/cli/v2"
@@ -94,7 +92,12 @@ func CreateApp() *cli.App {
 					&cli.StringFlag{
 						Name:    "chain",
 						Aliases: []string{"c"},
-						Usage:   "Chain to filter by",
+						// Simple chain name from superchain-registry corresponds to the file names in this directory: https://github.com/ethereum-optimism/superchain-registry/tree/821930ffec82ed6095130951e25bc1322190e0d9/superchain/configs/mainnet
+						Usage: "Chain to filter by - simple chain name from superchain-registry (e.g. op, zora, base) or full chain name from https://github.com/ethereum-lists/chains (e.g. 'Metal L2', 'OP Mainnet')",
+					},
+					&cli.BoolFlag{
+						Name:  "json",
+						Usage: "Output data as JSON",
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -108,8 +111,9 @@ func CreateApp() *cli.App {
 					testnet := c.Bool("testnet")
 					verbose := c.Bool("verbose")
 					addressName := c.String("address-name")
+					isJson := c.Bool("json")
 
-					GetAddresses(superchain.OPChains, chain, address, addressName, testnet, verbose)
+					GetAddresses(superchain.OPChains, chain, address, addressName, testnet, verbose, isJson)
 					return nil
 				},
 			},
@@ -123,109 +127,4 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-type NamedAddress struct {
-	Name    string
-	Address superchain.Address
-}
-
-func ConvertAddressListToNamedAddresses(addressList superchain.AddressList) []NamedAddress {
-	var namedAddresses []NamedAddress
-
-	val := reflect.ValueOf(addressList)
-	typ := reflect.TypeOf(addressList)
-
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldName := typ.Field(i).Name
-
-		if field.Type() == reflect.TypeOf(superchain.Address{}) {
-			namedAddresses = append(namedAddresses, NamedAddress{
-				Name:    fieldName,
-				Address: field.Interface().(superchain.Address),
-			})
-		}
-	}
-
-	return namedAddresses
-}
-
-func GetAddresses(opChains map[uint64]*superchain.ChainConfig, chainName, addressToFind, addressNameToFind string, isTestnet bool, isVerbose bool) {
-	for _, chain := range opChains {
-		if !isChainMatching(chain, chainName, isTestnet) {
-			continue // chain doesn't match criteria, skip this chain
-		}
-
-		namedAddresses := ConvertAddressListToNamedAddresses(chain.Addresses)
-
-		if addressToFind == "" {
-			handleAddressNameSearch(chain, namedAddresses, addressNameToFind, isVerbose, isTestnet)
-		} else {
-			handleAddressSearch(chain, namedAddresses, addressToFind, isVerbose, isTestnet)
-		}
-	}
-}
-
-func isChainMatching(chain *superchain.ChainConfig, chainName string, isTestnet bool) bool {
-	if chainName != "" && chain.Chain != chainName {
-		return false
-	}
-	if isTestnet && chain.Superchain != "sepolia" || !isTestnet && chain.Superchain != "mainnet" {
-		return false
-	}
-	return true
-}
-
-func handleAddressNameSearch(chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressNameToFind string, isVerbose bool, isTestnet bool) {
-	printChainAndNetwork(chain, isVerbose)
-	for _, namedAddress := range namedAddresses {
-		if addressNameToFind == "" || strings.Contains(strings.ToLower(namedAddress.Name), strings.ToLower(addressNameToFind)) {
-			printChainInfo(namedAddress.Name, namedAddress.Address.String(), isVerbose, isTestnet)
-		}
-	}
-}
-
-func handleAddressSearch(chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressToFind string, isVerbose bool, isTestnet bool) {
-	for _, namedAddress := range namedAddresses {
-		if namedAddress.Address.String() == addressToFind {
-			printChainAndNetwork(chain, isVerbose)
-			if isVerbose {
-				fmt.Printf("  Name: %s\n", namedAddress.Name)
-			}
-			printChainInfo(namedAddress.Name, namedAddress.Address.String(), isVerbose, isTestnet)
-		}
-	}
-}
-
-func printChainInfo(addressName, address string, isVerbose bool, isTestnet bool) {
-	if address == "0x0000000000000000000000000000000000000000" {
-		fmt.Printf("  %s: %s\n", addressName, "<n/a>")
-	} else {
-		if isVerbose {
-			fmt.Print(CreateHyperlinkedAddress(addressName, GetEtherscanURL(address, isTestnet)))
-		} else {
-			fmt.Printf("%s\n", address)
-		}
-	}
-}
-
-func printChainAndNetwork(chain *superchain.ChainConfig, verbose bool) {
-	if verbose {
-		fmt.Printf("Chain: %s\n", chain.Chain)
-		fmt.Printf("Network: %s\n", chain.Name)
-	}
-}
-
-func CreateHyperlinkedAddress(addressName string, etherscanAddressURL string) string {
-	addressPart := etherscanAddressURL[len(etherscanAddressURL)-42:]
-	return fmt.Sprintf("  %s: \033]8;;%s\033\\%s\033]8;;\033\\\n", addressName, etherscanAddressURL, addressPart)
-}
-
-func GetEtherscanURL(address string, isTestnet bool) string {
-	baseURL := "https://etherscan.io/address/%s"
-	if isTestnet {
-		baseURL = "https://sepolia.etherscan.io/address/%s"
-	}
-	return fmt.Sprintf(baseURL, address)
 }
