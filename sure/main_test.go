@@ -54,7 +54,7 @@ func TestListChains(t *testing.T) {
 	}{
 		{
 			name:       "List all chains in the superchain",
-			args:       []string{"superchain-registry-cli", "list"},
+			args:       []string{"sure", "list"},
 			wantOutput: "Chain: op\nNetwork: OP Mainnet",
 			wantErr:    false,
 		},

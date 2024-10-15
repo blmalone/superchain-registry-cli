@@ -18,6 +18,8 @@ The `superchain-registry-cli` is designed to simplify interactions with the supe
 
 - Install `superchain-registry-cli`:
     - `go install github.com/blmalone/superchain-registry-cli/sure@latest`
+- Optionally, install `jq` for JSON processing:
+    - `brew install jq` on macOS
  
 ## Usage
 
@@ -52,9 +54,10 @@ After installation, run `sure --help` for a full breakdown of the available func
     ```bash
         cast call $(sure ga -c op -an L1Standard --json | jq -r '.addrs.L1StandardBridgeProxy') "version()(string)"
 
-        # When you know there will be only one address returned
+        # When you know there will be oZz
         cast call $(sure ga -c op -an L1Standard --json | jq -r '.addrs | to_entries | .[0].value') "version()(string)"
     ```
+    <!-- ![How to use sure with cast](./cast-usage-example.gif)   -->
 
 ## Contributing
 

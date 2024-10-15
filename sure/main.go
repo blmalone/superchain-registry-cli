@@ -12,7 +12,7 @@ import (
 
 func CreateApp() *cli.App {
 	return &cli.App{
-		Name:  "superchain-registry-cli",
+		Name:  "sure",
 		Usage: "A tool for interacting with the superchain-registry",
 		Commands: []*cli.Command{
 			{
