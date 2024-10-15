@@ -25,6 +25,8 @@ The `superchain-registry-cli` is designed to simplify interactions with the supe
 
 After installation, run `sure --help` for a full breakdown of the available functionality.
 
+![General sure usage](./general-usage-example.gif)
+
 ## Examples
 
 - List all chains in the superchain (default is mainnet): 
@@ -57,7 +59,6 @@ After installation, run `sure --help` for a full breakdown of the available func
         # When you know there will be oZz
         cast call $(sure ga -c op -an L1Standard --json | jq -r '.addrs | to_entries | .[0].value') "version()(string)"
     ```
-    <!-- ![How to use sure with cast](./cast-usage-example.gif)   -->
 
 ## Contributing
 
