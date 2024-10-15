@@ -56,7 +56,7 @@ After installation, run `sure --help` for a full breakdown of the available func
     ```bash
         cast call $(sure ga -c op -an L1Standard --json | jq -r '.addrs.L1StandardBridgeProxy') "version()(string)"
 
-        # When you know there will be oZz
+        # When you know there will be only one address
         cast call $(sure ga -c op -an L1Standard --json | jq -r '.addrs | to_entries | .[0].value') "version()(string)"
     ```
 
