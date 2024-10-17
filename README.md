@@ -54,10 +54,10 @@ After installation, run `sure --help` for a full breakdown of the available func
 
 - Usage with [cast](https://book.getfoundry.sh/cast/):
     ```bash
-        cast call $(sure ga -c op -an L1Standard --json | jq -r '.addrs.L1StandardBridgeProxy') "version()(string)"
+        cast call $(sure ga -c op -an L1Standard --json | jq -r '.op.addrs.L1StandardBridgeProxy') "version()(string)"
 
         # When you know there will be only one address
-        cast call $(sure ga -c op -an L1Standard --json | jq -r '.addrs | to_entries | .[0].value') "version()(string)"
+        cast call $(sure ga -c op -an L1Standard --json | jq -r '.op.addrs | to_entries | .[0].value') "version()(string)"
     ```
 
 ## Contributing
