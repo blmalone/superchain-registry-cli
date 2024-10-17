@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 	"github.com/urfave/cli/v2"
@@ -17,7 +19,21 @@ func GetAddresses(ctx *cli.Context, opChains map[uint64]*superchain.ChainConfig,
 	relevantSuperchain := getRelevantSuperchain(superchainTarget)
 	chainExists := false
 
-	for _, chain := range opChains {
+	chains := make([]*superchain.ChainConfig, 0, len(superchain.OPChains))
+	for _, chain := range superchain.OPChains {
+		chains = append(chains, chain)
+	}
+	sort.Slice(chains, func(i, j int) bool {
+		return chains[i].Name < chains[j].Name
+	})
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', tabwriter.Debug)
+	if !isJson {
+		fmt.Fprintln(w, "Network\tAddress Name                    \tAddress")
+		fmt.Fprintln(w, "-------\t--------------------------------\t-------")
+	}
+
+	for _, chain := range chains {
 		if !isChainMatching(chain, chainName, relevantSuperchain) {
 			continue // Skip chains that do not match the criteria
 		}
@@ -26,9 +42,9 @@ func GetAddresses(ctx *cli.Context, opChains map[uint64]*superchain.ChainConfig,
 		namedAddresses := ConvertAddressListToNamedAddresses(chain.Addresses)
 
 		if addressToFind == "" {
-			collectAddressNameSearchResults(relevantSuperchain, chain, namedAddresses, addressNameToFind, isJson, jsonResult)
+			collectAddressNameSearchResults(relevantSuperchain, chain, namedAddresses, addressNameToFind, isJson, jsonResult, w)
 		} else {
-			collectAddressSearchResults(relevantSuperchain, chain, namedAddresses, addressToFind, isJson, jsonResult)
+			collectAddressSearchResults(relevantSuperchain, chain, namedAddresses, addressToFind, isJson, jsonResult, w)
 		}
 	}
 
@@ -39,6 +55,8 @@ func GetAddresses(ctx *cli.Context, opChains map[uint64]*superchain.ChainConfig,
 
 	if isJson {
 		outputJsonResults(jsonResult)
+	} else {
+		w.Flush() // Flush the writer to output the table
 	}
 	return nil
 }
@@ -85,10 +103,7 @@ func isChainMatching(chain *superchain.ChainConfig, chainName string, relevantSu
 	return true
 }
 
-func collectAddressNameSearchResults(relevantSuperchain *superchain.Superchain, chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressNameToFind string, isJson bool, jsonResults map[string]interface{}) {
-	if !isJson {
-		printChainAndNetwork(chain)
-	}
+func collectAddressNameSearchResults(relevantSuperchain *superchain.Superchain, chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressNameToFind string, isJson bool, jsonResults map[string]interface{}, w *tabwriter.Writer) {
 	jsonResults[chain.Chain] = make(map[string]interface{})
 	chainMap, _ := jsonResults[chain.Chain].(map[string]interface{})
 	chainMap["network"] = chain.Name
@@ -102,13 +117,13 @@ func collectAddressNameSearchResults(relevantSuperchain *superchain.Superchain, 
 			if isJson {
 				addressMap[namedAddress.Name] = namedAddress.Address.String()
 			} else {
-				printChainInfo(namedAddress.Name, namedAddress.Address.String(), isTestnetSuperchain(chain.Superchain))
+				fmt.Fprintf(w, "%s\t%s\t%s\t\t\n", chain.Name, namedAddress.Name, FormatAddress(namedAddress.Address.String(), isTestnetSuperchain(chain.Superchain)))
 			}
 		}
 	}
 }
 
-func collectAddressSearchResults(relevantSuperchain *superchain.Superchain, chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressToFind string, isJson bool, jsonResults map[string]interface{}) {
+func collectAddressSearchResults(relevantSuperchain *superchain.Superchain, chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressToFind string, isJson bool, jsonResults map[string]interface{}, w *tabwriter.Writer) {
 	addressesProperty := "addrs"
 	jsonResults["network"] = chain.Name
 	jsonResults["chain"] = chain.Chain
@@ -124,29 +139,22 @@ func collectAddressSearchResults(relevantSuperchain *superchain.Superchain, chai
 				chainData := jsonResults[addressesProperty].(map[string]interface{})
 				chainData[namedAddress.Name] = namedAddress.Address.String()
 			} else {
-				printChainAndNetwork(chain)
-				printChainInfo(namedAddress.Name, namedAddress.Address.String(), isTestnetSuperchain(chain.Superchain))
+				fmt.Fprintf(w, "%s\t%s\t%s\t\t\n", chain.Name, namedAddress.Name, FormatAddress(namedAddress.Address.String(), isTestnetSuperchain(chain.Superchain)))
 			}
 		}
 	}
 }
 
-func printChainInfo(addressName, address string, isTestnet bool) {
+func FormatAddress(address string, isTestnet bool) string {
 	if address == "0x0000000000000000000000000000000000000000" {
-		fmt.Printf("  %s: %s\n", addressName, "<n/a>")
-	} else {
-		fmt.Print(CreateHyperlinkedAddress(addressName, GetEtherscanURL(address, isTestnet)))
+		return fmt.Sprintf("  \033]8;;%s\033\\%s\033]8;;\033\\\n", "N/A", "N/A")
 	}
+	return CreateHyperlinkedAddress(GetEtherscanURL(address, isTestnet))
 }
 
-func printChainAndNetwork(chain *superchain.ChainConfig) {
-	fmt.Printf("Chain: %s\n", chain.Chain)
-	fmt.Printf("Network: %s\n", chain.Name)
-}
-
-func CreateHyperlinkedAddress(addressName string, etherscanAddressURL string) string {
+func CreateHyperlinkedAddress(etherscanAddressURL string) string {
 	addressPart := etherscanAddressURL[len(etherscanAddressURL)-42:]
-	return fmt.Sprintf("  %s: \033]8;;%s\033\\%s\033]8;;\033\\\n", addressName, etherscanAddressURL, addressPart)
+	return fmt.Sprintf("  \033]8;;%s\033\\%s\033]8;;\033\\\n", etherscanAddressURL, addressPart)
 }
 
 func GetEtherscanURL(address string, isTestnet bool) string {

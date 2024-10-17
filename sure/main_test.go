@@ -2,15 +2,10 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
 )
-
-func formatAddress(name, address string, isTestnet bool) string {
-	return CreateHyperlinkedAddress(name, GetEtherscanURL(address, isTestnet))
-}
 
 func runTest(t *testing.T, name string, args []string, wantOutput []string, wantErr bool) {
 	t.Run(name, func(t *testing.T) {
@@ -75,17 +70,30 @@ func TestListChains(t *testing.T) {
 }
 
 func TestGetAddresses(t *testing.T) {
-	opMainnetAddressManager := formatAddress("AddressManager", "0xdE1FCfB0851916CA5101820A69b13a4E276bd81F", false)
-	opMainnetL1CrossDomainMessengerProxy := formatAddress("L1CrossDomainMessengerProxy", "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1", false)
-	allChainAddressesOPMainnet := fmt.Sprintf("Chain: op\nNetwork: OP Mainnet\n%s%s", opMainnetAddressManager, opMainnetL1CrossDomainMessengerProxy)
 
-	opSepoliaAddressManager := formatAddress("AddressManager", "0x9bFE9c5609311DF1c011c47642253B78a4f33F4B", true)
-	opSepoliaL1CrossDomainMessengerProxy := formatAddress("L1CrossDomainMessengerProxy", "0x58Cc85b8D04EA49cC6DBd3CbFFd00B4B8D6cb3ef", true)
-	allChainAddressesOPSepolia := fmt.Sprintf("Chain: op\nNetwork: OP Sepolia Testnet\n%s%s", opSepoliaAddressManager, opSepoliaL1CrossDomainMessengerProxy)
+	expectedHeader := []string{
+		"Network", "Address Name", "Address",
+	}
+	opfirstRow := []string{
+		"OP Mainnet", "AddressManager", FormatAddress("0xdE1FCfB0851916CA5101820A69b13a4E276bd81F", false),
+	}
+	oplastRow := []string{
+		"OP Mainnet", "DAChallengeAddress", FormatAddress("0x0000000000000000000000000000000000000000", false),
+	}
 
-	l1CrossDomainMessengerAddressOPMainnet := fmt.Sprintf("Chain: op\nNetwork: OP Mainnet\n%s", opMainnetL1CrossDomainMessengerProxy)
-	zoraMainnetL1CrossDomainMessengerProxy := formatAddress("L1CrossDomainMessengerProxy", "0xdC40a14d9abd6F410226f1E6de71aE03441ca506", false)
-	l1CrossDomainMessengerAddressZora := fmt.Sprintf("Chain: zora\nNetwork: Zora\n%s", zoraMainnetL1CrossDomainMessengerProxy)
+	opSepoliaFirstRow := []string{
+		"OP Sepolia Testnet", "AddressManager", FormatAddress("0x9bFE9c5609311DF1c011c47642253B78a4f33F4B", true),
+	}
+	opSepoliaLastRow := []string{
+		"OP Sepolia Testnet", "DAChallengeAddress", FormatAddress("0x0000000000000000000000000000000000000000", true),
+	}
+
+	specificAddressOpRow := []string{
+		"OP Mainnet", "L1CrossDomainMessengerProxy", FormatAddress("0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1", false),
+	}
+	specificAddressZoraRow := []string{
+		"Zora", "L1CrossDomainMessengerProxy", FormatAddress("0xdC40a14d9abd6F410226f1E6de71aE03441ca506", false),
+	}
 
 	tests := []struct {
 		name       string
@@ -96,25 +104,25 @@ func TestGetAddresses(t *testing.T) {
 		{
 			name:       "Find all chain addresses",
 			args:       []string{"sure", "get-addresses", "--chain", "op"},
-			wantOutput: []string{allChainAddressesOPMainnet},
+			wantOutput: append(append(expectedHeader, opfirstRow...), oplastRow...),
 			wantErr:    false,
 		},
 		{
 			name:       "Find all testnet chain addresses",
 			args:       []string{"sure", "get-addresses", "--chain", "op", "-tg", "sepolia"},
-			wantOutput: []string{allChainAddressesOPSepolia},
+			wantOutput: append(append(expectedHeader, opSepoliaFirstRow...), opSepoliaLastRow...),
 			wantErr:    false,
 		},
 		{
 			name:       "Find specific address by name",
 			args:       []string{"sure", "get-addresses", "--chain", "op", "-an", "L1CrossDomainMessengerProxy"},
-			wantOutput: []string{fmt.Sprintf("Chain: op\nNetwork: OP Mainnet\n%s", formatAddress("L1CrossDomainMessengerProxy", "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1", false))},
+			wantOutput: append(expectedHeader, specificAddressOpRow...),
 			wantErr:    false,
 		},
 		{
 			name:       "Find specific address by name across all chains",
 			args:       []string{"sure", "get-addresses", "-an", "L1Cross"},
-			wantOutput: []string{l1CrossDomainMessengerAddressOPMainnet, l1CrossDomainMessengerAddressZora}, // should have more than one change
+			wantOutput: append(append(expectedHeader, specificAddressZoraRow...), specificAddressOpRow...),
 			wantErr:    false,
 		},
 	}
