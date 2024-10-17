@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
+
+	"text/tabwriter"
 
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 	"github.com/urfave/cli/v2"
 )
-
-// Superchain registry url: https://raw.githubusercontent.com/ethereum-optimism/superchain-registry/refs/heads/main
 
 func CreateApp() *cli.App {
 	return &cli.App{
@@ -27,38 +28,39 @@ func CreateApp() *cli.App {
 			{
 				Name:    "list",
 				Aliases: []string{"ls"},
-				Usage:   "List all chains in the superchain",
+				Usage:   "List all chains in the superchain in superchain registry",
 				Flags: []cli.Flag{
-					&cli.BoolFlag{
-						Name:    "verbose",
-						Aliases: []string{"v"},
-						Usage:   "Enable verbose output",
-					},
-					&cli.BoolFlag{
-						Name:    "testnet",
-						Aliases: []string{"t"},
-						Usage:   "Filter for testnet chains",
+					&cli.StringFlag{
+						Name:    "target",
+						Aliases: []string{"tg"},
+						Usage:   "Target chain to filter by (mainnet, sepolia, sepolia-dev-0)",
+						Value:   "mainnet", // Default to mainnet
 					},
 				},
 				Action: func(c *cli.Context) error {
-					testnet := c.Bool("testnet")
+					target := c.String("target")
 
+					// Sort the chains by name
+					chains := make([]*superchain.ChainConfig, 0, len(superchain.OPChains))
 					for _, chain := range superchain.OPChains {
-						if testnet && chain.Superchain != "sepolia" || !testnet && chain.Superchain != "mainnet" {
+						chains = append(chains, chain)
+					}
+					sort.Slice(chains, func(i, j int) bool {
+						return chains[i].Name < chains[j].Name
+					})
+
+					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', tabwriter.Debug)
+					fmt.Fprintln(w, "Chain name\tShort name\tChain ID\tRPC URL\tSuperchain Level\tStandard Chain Candidate")
+					fmt.Fprintln(w, "----------\t----------\t--------\t-------\t----------------\t------------------------")
+
+					for _, chain := range chains {
+						if chain.Superchain != target {
 							continue
 						}
-
-						if chain.SuperchainLevel == superchain.Standard {
-							fmt.Printf("Chain: %s\n", chain.Chain)
-							fmt.Printf("Network: %s\n", chain.Name)
-							if c.Bool("verbose") {
-								fmt.Printf("  Identifier: %s\n", chain.Identifier())
-								fmt.Printf("  Chain ID: %d\n", chain.ChainID)
-								fmt.Printf("  RPC: %s\n", chain.PublicRPC)
-								fmt.Printf("  Explorer: %s\n", chain.Explorer)
-							}
-						}
+						fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%d\t%t\n", chain.Name, chain.Chain, chain.ChainID, chain.PublicRPC, chain.SuperchainLevel, chain.StandardChainCandidate)
 					}
+
+					w.Flush()
 					return nil
 				},
 			},
@@ -69,15 +71,11 @@ func CreateApp() *cli.App {
 				HideHelpCommand:        true,
 				UseShortOptionHandling: true,
 				Flags: []cli.Flag{
-					&cli.BoolFlag{
-						Name:    "verbose",
-						Aliases: []string{"v"},
-						Usage:   "Enable verbose output",
-					},
-					&cli.BoolFlag{
-						Name:    "testnet",
-						Aliases: []string{"t"},
-						Usage:   "Filter for testnet chains",
+					&cli.StringFlag{
+						Name:    "target",
+						Aliases: []string{"tg"},
+						Usage:   "Target chain to filter by (mainnet, sepolia, sepolia-dev-0)",
+						Value:   "mainnet",
 					},
 					&cli.StringFlag{
 						Name:    "address",
@@ -108,12 +106,11 @@ func CreateApp() *cli.App {
 					// TODO: validate address
 					address := c.String("address")
 					chain := c.String("chain")
-					testnet := c.Bool("testnet")
-					verbose := c.Bool("verbose")
+					superchainTarget := c.String("target")
 					addressName := c.String("address-name")
 					isJson := c.Bool("json")
 
-					GetAddresses(superchain.OPChains, chain, address, addressName, testnet, verbose, isJson)
+					GetAddresses(superchain.OPChains, chain, address, addressName, superchainTarget, isJson)
 					return nil
 				},
 			},

@@ -48,6 +48,13 @@ func runTest(t *testing.T, name string, args []string, wantOutput []string, want
 }
 
 func TestListChains(t *testing.T) {
+	expectedHeader := []string{
+		"Chain name", "Short name", "Chain ID", "RPC URL", "Superchain Level", "Standard Chain Candidate",
+		"Base", "base", "8453", "https://mainnet.base.org", "0", "true",
+		"Binary Mainnet", "tbn", "624", "https://rpc.zero.thebinaryholdings.com", "0", "false",
+		"Zora", "zora", "7777777", "https://rpc.zora.energy", "0", "true",
+	}
+
 	tests := []struct {
 		name       string
 		args       []string
@@ -57,7 +64,7 @@ func TestListChains(t *testing.T) {
 		{
 			name:       "List all chains in the superchain",
 			args:       []string{"sure", "list"},
-			wantOutput: []string{"Chain: op\nNetwork: OP Mainnet"},
+			wantOutput: expectedHeader,
 			wantErr:    false,
 		},
 	}
@@ -94,7 +101,7 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			name:       "Find all testnet chain addresses",
-			args:       []string{"sure", "get-addresses", "--chain", "op", "-t"},
+			args:       []string{"sure", "get-addresses", "--chain", "op", "-tg", "sepolia"},
 			wantOutput: []string{allChainAddressesOPSepolia},
 			wantErr:    false,
 		},

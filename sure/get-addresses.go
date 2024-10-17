@@ -10,22 +10,22 @@ import (
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 )
 
-func GetAddresses(opChains map[uint64]*superchain.ChainConfig, chainName, addressToFind, addressNameToFind string, isTestnet bool, isVerbose bool, isJson bool) {
+func GetAddresses(opChains map[uint64]*superchain.ChainConfig, chainName, addressToFind, addressNameToFind string, superchainTarget string, isJson bool) {
 	jsonResult := make(map[string]interface{})
 
-	relevantSuperchain := getRelevantSuperchain(isTestnet)
+	relevantSuperchain := getRelevantSuperchain(superchainTarget)
 
 	for _, chain := range opChains {
-		if !isChainMatching(chain, chainName, isTestnet) {
+		if !isChainMatching(chain, chainName, relevantSuperchain) {
 			continue // Skip chains that do not match the criteria
 		}
 
 		namedAddresses := ConvertAddressListToNamedAddresses(chain.Addresses)
 
 		if addressToFind == "" {
-			collectAddressNameSearchResults(relevantSuperchain, chain, namedAddresses, addressNameToFind, isTestnet, isJson, jsonResult)
+			collectAddressNameSearchResults(relevantSuperchain, chain, namedAddresses, addressNameToFind, isJson, jsonResult)
 		} else {
-			collectAddressSearchResults(relevantSuperchain, chain, namedAddresses, addressToFind, isTestnet, isJson, jsonResult)
+			collectAddressSearchResults(relevantSuperchain, chain, namedAddresses, addressToFind, isJson, jsonResult)
 		}
 	}
 
@@ -35,11 +35,13 @@ func GetAddresses(opChains map[uint64]*superchain.ChainConfig, chainName, addres
 }
 
 // Helper function to determine the relevant superchain
-func getRelevantSuperchain(isTestnet bool) *superchain.Superchain {
-	if isTestnet {
-		return superchain.Superchains["sepolia"]
+func getRelevantSuperchain(superchainTarget string) *superchain.Superchain {
+	superchain := superchain.Superchains[superchainTarget]
+	if superchain == nil {
+		fmt.Fprintf(os.Stderr, "Error: Superchain target %s not found\n", superchainTarget)
+		os.Exit(1)
 	}
-	return superchain.Superchains["mainnet"]
+	return superchain
 }
 
 // Helper function to output JSON results
@@ -52,17 +54,29 @@ func outputJsonResults(jsonResult map[string]interface{}) {
 	fmt.Println(string(jsonData))
 }
 
-func isChainMatching(chain *superchain.ChainConfig, chainName string, isTestnet bool) bool {
+func isChainMatching(chain *superchain.ChainConfig, chainName string, relevantSuperchain *superchain.Superchain) bool {
 	if chainName != "" && !strings.EqualFold(chain.Chain, chainName) && !strings.EqualFold(chain.Name, chainName) {
 		return false
 	}
-	if isTestnet && chain.Superchain != "sepolia" || !isTestnet && chain.Superchain != "mainnet" {
+	const (
+		mainnet     = "mainnet"
+		sepolia     = "sepolia"
+		sepoliaDev0 = "sepolia-dev-0"
+	)
+
+	if (relevantSuperchain.Superchain == mainnet) && (chain.Superchain == sepolia || chain.Superchain == sepoliaDev0) {
+		return false
+	}
+	if (relevantSuperchain.Superchain == sepolia) && (chain.Superchain == mainnet || chain.Superchain == sepoliaDev0) {
+		return false
+	}
+	if (relevantSuperchain.Superchain == sepoliaDev0) && (chain.Superchain == mainnet || chain.Superchain == sepolia) {
 		return false
 	}
 	return true
 }
 
-func collectAddressNameSearchResults(relevantSuperchain *superchain.Superchain, chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressNameToFind string, isTestnet bool, isJson bool, jsonResults map[string]interface{}) {
+func collectAddressNameSearchResults(relevantSuperchain *superchain.Superchain, chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressNameToFind string, isJson bool, jsonResults map[string]interface{}) {
 	if !isJson {
 		printChainAndNetwork(chain)
 	}
@@ -79,13 +93,13 @@ func collectAddressNameSearchResults(relevantSuperchain *superchain.Superchain, 
 			if isJson {
 				addressMap[namedAddress.Name] = namedAddress.Address.String()
 			} else {
-				printChainInfo(namedAddress.Name, namedAddress.Address.String(), isTestnet)
+				printChainInfo(namedAddress.Name, namedAddress.Address.String(), isTestnetSuperchain(chain.Superchain))
 			}
 		}
 	}
 }
 
-func collectAddressSearchResults(relevantSuperchain *superchain.Superchain, chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressToFind string, isTestnet bool, isJson bool, jsonResults map[string]interface{}) {
+func collectAddressSearchResults(relevantSuperchain *superchain.Superchain, chain *superchain.ChainConfig, namedAddresses []NamedAddress, addressToFind string, isJson bool, jsonResults map[string]interface{}) {
 	addressesProperty := "addrs"
 	jsonResults["network"] = chain.Name
 	jsonResults["chain"] = chain.Chain
@@ -102,7 +116,7 @@ func collectAddressSearchResults(relevantSuperchain *superchain.Superchain, chai
 				chainData[namedAddress.Name] = namedAddress.Address.String()
 			} else {
 				printChainAndNetwork(chain)
-				printChainInfo(namedAddress.Name, namedAddress.Address.String(), isTestnet)
+				printChainInfo(namedAddress.Name, namedAddress.Address.String(), isTestnetSuperchain(chain.Superchain))
 			}
 		}
 	}
@@ -158,4 +172,8 @@ func ConvertAddressListToNamedAddresses(addressList superchain.AddressList) []Na
 	}
 
 	return namedAddresses
+}
+
+func isTestnetSuperchain(superchainName string) bool {
+	return superchainName == "sepolia" || superchainName == "sepolia-dev-0"
 }
