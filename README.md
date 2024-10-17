@@ -31,15 +31,15 @@ After installation, run `sure --help` for a full breakdown of the available func
 
 - List all chains in the superchain (default is mainnet): 
     ```bash 
-        sure ls
         sure list
-        sure ls --testnet
+        sure ls --json
+        sure ls --target sepolia
     ``` 
 - Get all addresses for a chain: 
     ```bash 
         sure get-addresses --chain op
         sure ga -c op
-        sure ga -c op -t
+        sure ga -c op -tg sepolia
     ```
 - Get a specific address by name (fuzzy match on `--address-name`): 
     ```bash

@@ -3,7 +3,7 @@ module github.com/blmalone/superchain-registry-cli
 go 1.22.0
 
 require (
-	github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20241011205614-bbecafbe528e
+	github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20241017181914-3c98a4d08452
 	github.com/urfave/cli/v2 v2.27.4
 )
 

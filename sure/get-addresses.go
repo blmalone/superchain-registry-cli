@@ -8,18 +8,21 @@ import (
 	"strings"
 
 	"github.com/ethereum-optimism/superchain-registry/superchain"
+	"github.com/urfave/cli/v2"
 )
 
-func GetAddresses(opChains map[uint64]*superchain.ChainConfig, chainName, addressToFind, addressNameToFind string, superchainTarget string, isJson bool) {
+func GetAddresses(ctx *cli.Context, opChains map[uint64]*superchain.ChainConfig, chainName string, addressToFind string, addressNameToFind string, superchainTarget string, isJson bool) error {
 	jsonResult := make(map[string]interface{})
 
 	relevantSuperchain := getRelevantSuperchain(superchainTarget)
+	chainExists := false
 
 	for _, chain := range opChains {
 		if !isChainMatching(chain, chainName, relevantSuperchain) {
 			continue // Skip chains that do not match the criteria
 		}
 
+		chainExists = true
 		namedAddresses := ConvertAddressListToNamedAddresses(chain.Addresses)
 
 		if addressToFind == "" {
@@ -29,16 +32,22 @@ func GetAddresses(opChains map[uint64]*superchain.ChainConfig, chainName, addres
 		}
 	}
 
+	if !chainExists {
+		fmt.Fprintf(os.Stderr, "Error: Chain '%s' not found\n\n", chainName)
+		os.Exit(1)
+	}
+
 	if isJson {
 		outputJsonResults(jsonResult)
 	}
+	return nil
 }
 
 // Helper function to determine the relevant superchain
 func getRelevantSuperchain(superchainTarget string) *superchain.Superchain {
 	superchain := superchain.Superchains[superchainTarget]
 	if superchain == nil {
-		fmt.Fprintf(os.Stderr, "Error: Superchain target %s not found\n", superchainTarget)
+		fmt.Fprintf(os.Stderr, "Error: Superchain target %s not found\n\n", superchainTarget)
 		os.Exit(1)
 	}
 	return superchain

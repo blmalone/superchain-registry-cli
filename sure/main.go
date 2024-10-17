@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -36,9 +37,14 @@ func CreateApp() *cli.App {
 						Usage:   "Target chain to filter by (mainnet, sepolia, sepolia-dev-0)",
 						Value:   "mainnet", // Default to mainnet
 					},
+					&cli.BoolFlag{
+						Name:  "json",
+						Usage: "Output data as JSON",
+					},
 				},
 				Action: func(c *cli.Context) error {
 					target := c.String("target")
+					isJson := c.Bool("json")
 
 					// Sort the chains by name
 					chains := make([]*superchain.ChainConfig, 0, len(superchain.OPChains))
@@ -49,18 +55,32 @@ func CreateApp() *cli.App {
 						return chains[i].Name < chains[j].Name
 					})
 
-					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', tabwriter.Debug)
-					fmt.Fprintln(w, "Chain name\tShort name\tChain ID\tRPC URL\tSuperchain Level\tStandard Chain Candidate")
-					fmt.Fprintln(w, "----------\t----------\t--------\t-------\t----------------\t------------------------")
-
+					filteredChains := make([]*superchain.ChainConfig, 0)
 					for _, chain := range chains {
-						if chain.Superchain != target {
-							continue
+						if chain.Superchain == target {
+							filteredChains = append(filteredChains, chain)
 						}
-						fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%d\t%t\n", chain.Name, chain.Chain, chain.ChainID, chain.PublicRPC, chain.SuperchainLevel, chain.StandardChainCandidate)
 					}
 
-					w.Flush()
+					if isJson {
+						jsonData, err := json.MarshalIndent(filteredChains, "", "  ")
+						if err != nil {
+							return fmt.Errorf("failed to marshal chains to JSON: %w", err)
+						}
+						fmt.Println(string(jsonData))
+					} else {
+						// Output as table
+						w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', tabwriter.Debug)
+						fmt.Fprintln(w, "Chain name\tShort name\tChain ID\tRPC URL\tSuperchain Level\tStandard Chain Candidate")
+						fmt.Fprintln(w, "----------\t----------\t--------\t-------\t----------------\t------------------------")
+
+						for _, chain := range filteredChains {
+							fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%d\t%t\n", chain.Name, chain.Chain, chain.ChainID, chain.PublicRPC, chain.SuperchainLevel, chain.StandardChainCandidate)
+						}
+
+						w.Flush()
+					}
+
 					return nil
 				},
 			},
@@ -110,8 +130,7 @@ func CreateApp() *cli.App {
 					addressName := c.String("address-name")
 					isJson := c.Bool("json")
 
-					GetAddresses(superchain.OPChains, chain, address, addressName, superchainTarget, isJson)
-					return nil
+					return GetAddresses(c, superchain.OPChains, chain, address, addressName, superchainTarget, isJson)
 				},
 			},
 		},
